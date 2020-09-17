@@ -32,6 +32,7 @@ kable(Sensory_raw[1:5,])
 We see the issue with the raw data is that measurements for a given item are on multiple rows. To fix this, I take each row of measurements, re-align it such that no columns are empty, and add a new column listing the correct item for each row.
 
 ```{r}
+# Remove NA's, align columns
 Sensory_values <- apply(Sensory_raw, 1, function(x){
   if(any(is.na(x))){
     return(x[!is.na(x)])
@@ -39,6 +40,7 @@ Sensory_values <- apply(Sensory_raw, 1, function(x){
     return(x[-1])
   }
 })
+# Add column for item
 Sensory <- data.frame(cbind(rep(seq(1, 10, 1), each = 3), t(Sensory_values)))
 colnames(Sensory) <- c("Item", seq(1, 5, 1))
 Sensory <- as_data_frame(Sensory)
@@ -49,6 +51,7 @@ Sensory <- as_data_frame(Sensory)
 The measurements for each operator are currently spread out over multiple columns. A cleaner version would have these measurements collected into a single column, which I do using the "gather" function from tidyverse.
 
 ```{r}
+# gather operator columns
 Sensory %>% 
   gather(Operator, Value, -Item) %>% 
   group_by(Operator) %>% 
@@ -78,6 +81,7 @@ Sensory %>%
 ### base R data-munging
 
 ```{r message = F, warning = F}
+# Read in raw Long Jump data
 Medals_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat")
 kable(Medals_raw[1:5,])
 ```
@@ -86,6 +90,7 @@ We see the problem with this raw table is the data aren't organized into columns
 
 
 ```{r message = F, warning = F}
+# remove na's
 Medals_values <- as.numeric(c(t(Medals_raw)))
 Medals_values <- Medals_values[!is.na(Medals_values)]
 Medals <- data.frame(Year = Medals_values[seq(1, length(Medals_values), 2)],
@@ -100,7 +105,7 @@ We also need to mutate the year variable since it is currently coded. The mutati
 
 ```{r}
 Medals <- Medals %>% 
-  mutate(Year = Year + 1990) %>% 
+  mutate(Year = Year + 1900) %>% 
   arrange(Year)
 ```
 
@@ -122,7 +127,7 @@ Medals %>% as_data_frame() %>%
   arrange(Year) %>% 
   ggplot(aes(x = Year, y = Long_Jump)) + 
   geom_line() + 
-  labs(y = "Long Jump (cm)")
+  labs(y = "Long Jump (cm)", title = "Olympics Long Jump Record Over Time")
 ```
 
 
@@ -131,6 +136,7 @@ Medals %>% as_data_frame() %>%
 ### base R data-munging
 
 ```{r message = F, warning = F}
+# Read in raw brain weight data
 Body_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat")
 kable(Body_raw[1:5,])
 ```
@@ -183,6 +189,7 @@ We observe a strong positive linear relationship between log-body weight and log
 ### base r data-munging
 
 ```{r, warning = F, message = F}
+# Read in raw tomatoes data
 Tomatoes_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat", skip = 2, 
                    col_names = c("Tomato_Type", "1000", "2000", "3000"))
 kable(Tomatoes_raw[1:5,])
@@ -225,6 +232,6 @@ Tomatoes %>%
   summarize(Avg_Yield = mean(Yield)) %>% 
   ggplot(aes(x = Density, y = Avg_Yield, fill = Tomato_Type)) + 
   geom_col(position = "dodge") + 
-  labs(y = "Average Yield")
+  labs(y = "Average Yield", title = "Average Tomato Yield Across Different Densities")
 ```
 
