@@ -1,0 +1,230 @@
+---
+title: "HW2_ahcooper"
+author: "Andrew Cooper"
+date: "9/15/2020"
+output: pdf_document
+---
+
+```{r echo = F, message = F, warning = F}
+library(readr)
+library(tidyverse)
+library(knitr)
+```
+
+
+## Problem 3
+
+I aim to make version control an integral and necessary component of my future career as a statistician/data analyst. After programming for about 6 years I have realized how much time I have dedicated to sorting through old versions of code or struggling to find the most up-to-date version of a project. I have also become aware of how often I duplicate the same work for multiple projects. I plan on using version control to keep a continuously up-to-date system of all my projects so that I can always grab and use past code whenever I need to.
+
+# Problem 4
+
+## Part a
+
+### base R data-munging
+
+```{r message = F, warning = F}
+# Read in raw sensory data
+Sensory_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat", 
+     col_types = cols(Item = col_character()), col_names = F, skip = 2)
+kable(Sensory_raw[1:5,])
+```
+
+We see the issue with the raw data is that measurements for a given item are on multiple rows. To fix this, I take each row of measurements, re-align it such that no columns are empty, and add a new column listing the correct item for each row.
+
+```{r}
+Sensory_values <- apply(Sensory_raw, 1, function(x){
+  if(any(is.na(x))){
+    return(x[!is.na(x)])
+  }else{
+    return(x[-1])
+  }
+})
+Sensory <- data.frame(cbind(rep(seq(1, 10, 1), each = 3), t(Sensory_values)))
+colnames(Sensory) <- c("Item", seq(1, 5, 1))
+Sensory <- as_data_frame(Sensory)
+```
+
+### tidyverse data-munging
+
+The measurements for each operator are currently spread out over multiple columns. A cleaner version would have these measurements collected into a single column, which I do using the "gather" function from tidyverse.
+
+```{r}
+Sensory %>% 
+  gather(Operator, Value, -Item) %>% 
+  group_by(Operator) %>% 
+  summarize(`Average Value` = mean(Value)) %>% 
+  kable()
+```
+
+### Plot
+
+Given the nature of the data I decided to create a bar-chart in ggplot, where my summary statistic is the average measurement across all items for a single operator.
+
+
+```{r echo = F}
+Sensory %>% 
+  mutate(Item = as.factor(Item)) %>% 
+  gather(Operator, Value, -Item) %>% 
+  group_by(Operator) %>% 
+  summarize(Avg_Value = mean(Value)) %>% 
+  ggplot(aes(x = Operator, y = Avg_Value)) + 
+  geom_col() + 
+  labs(y = "Average Value", title = "Average Measurements for Five Operators Across Ten Items")
+```
+
+
+## Part b
+
+### base R data-munging
+
+```{r message = F, warning = F}
+Medals_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat")
+kable(Medals_raw[1:5,])
+```
+
+We see the problem with this raw table is the data aren't organized into columns, but follow the pattern of year and maximum long jump. To fix this, I extract the raw data and put it into a vector, then use the pattern to organize the data into two appropriate columns.
+
+
+```{r message = F, warning = F}
+Medals_values <- as.numeric(c(t(Medals_raw)))
+Medals_values <- Medals_values[!is.na(Medals_values)]
+Medals <- data.frame(Year = Medals_values[seq(1, length(Medals_values), 2)],
+                     Long_Jump = Medals_values[seq(2, length(Medals_values), 2)])
+Medals <- as_data_frame(Medals)
+```
+
+
+### tidyverse data-munging
+
+We also need to mutate the year variable since it is currently coded. The mutation is simple; we just add 1990 to each value. We also sort the rows by year, which makes sense intuitively.
+
+```{r}
+Medals <- Medals %>% 
+  mutate(Year = Year + 1990) %>% 
+  arrange(Year)
+```
+
+```{r echo = F}
+kable(summary(Medals %>% select(Year)))
+```
+
+
+```{r echo = F}
+kable(summary(Medals %>% select(Long_Jump)))
+```
+
+### Plot
+
+A line-plot of the long jump data seems appropriate given the time-series nature of the data.
+
+```{r echo = F}
+Medals %>% as_data_frame() %>% 
+  arrange(Year) %>% 
+  ggplot(aes(x = Year, y = Long_Jump)) + 
+  geom_line() + 
+  labs(y = "Long Jump (cm)")
+```
+
+
+## Part c
+
+### base R data-munging
+
+```{r message = F, warning = F}
+Body_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat")
+kable(Body_raw[1:5,])
+```
+
+We see the problem with the raw data is similar to the problem in part b; that is, the data isn't organized into proper columns but uses a pattern of "body weight", "brain weight" for each observation. Like in part b, I extracted the raw data and put it into a vector, then used the pattern to organize the data into two appropriate columns.
+
+```{r message = F, warning = F}
+Body_values <- as.numeric(c(t(Body_raw)))
+Body_values <- Body_values[!is.na(Body_values)]
+Body <- data.frame(Brain_Weight = Body_values[seq(1, length(Body_values), 2)],
+                     Body_Weight = Body_values[seq(2, length(Body_values), 2)])
+Body <- as_data_frame(Body)
+```
+
+### tidyverse data-munging
+
+```{r}
+Body %>% 
+  summarize(`Average Body Weight` = mean(Body_Weight),
+            `Average Brain Weight` = mean(Brain_Weight),
+            `Body Weight SD` = sd(Body_Weight),
+            `Brain Weight SD` = sd(Brain_Weight),
+            `Min Body Weight` = min(Body_Weight),
+            `Min Brain Weight` = min(Body_Weight),
+            `Max Body Weight` = max(Body_Weight),
+            `Max Brain Weight` = max(Body_Weight)) %>% 
+  kable()
+```
+
+
+### Plot
+
+Due to the extremely positive-skewed brain and body weights as we see in the summary table above, it seems appropriate to log-transform both variables in the x-y plot.
+
+```{r echo = F}
+Body %>% 
+  mutate(log_brain = log(Brain_Weight),
+         log_body = log(Body_Weight)) %>% 
+  ggplot(aes(x = log_body, y = log_brain)) + 
+  geom_point() + 
+  labs(x = "log-Body Weight", y = "log-Body Weight", title = "Body Weights and Brain Weights of Various Animals")
+```
+
+
+We observe a strong positive linear relationship between log-body weight and log-brain weight.
+
+
+## Part d
+
+### base r data-munging
+
+```{r, warning = F, message = F}
+Tomatoes_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat", skip = 2, 
+                   col_names = c("Tomato_Type", "1000", "2000", "3000"))
+kable(Tomatoes_raw[1:5,])
+```
+
+We see the problem with the raw table is that multiple observations are within columns in a comma-delimited format. To fix this, I use apply to iterate through each row and split up these values accordingly.
+
+```{r warning = F, message = F}
+Tomatoes <- data.frame(Tomato_Type = rep(Tomatoes_raw$Tomato_Type, each = 3), 
+                       apply(Tomatoes_raw[,-1], 2, function(x){as.numeric(unlist(strsplit(x, ",")))}))
+Tomatoes <- as_data_frame(Tomatoes)
+```
+
+### tidyverse data-munging
+
+Currently all the yield measurements for different densities are spread out across multiple columns. It would be tidier to gather these into a single column, which I do in tidyverse.
+
+
+```{r}
+Tomatoes <- Tomatoes %>% 
+  gather(Density, Yield, -Tomato_Type)
+```
+
+
+```{r echo = F}
+Tomatoes %>% 
+  group_by(Tomato_Type, Density) %>% 
+  summarize(Avg_Yield = mean(Yield)) %>% 
+  kable()
+```
+
+
+### Plot
+
+Barplots again seem appropriate here to show the average measured yield for each density and tomato type.
+
+```{r echo = F, warning = F, message = F}
+Tomatoes %>% 
+  group_by(Tomato_Type, Density) %>% 
+  summarize(Avg_Yield = mean(Yield)) %>% 
+  ggplot(aes(x = Density, y = Avg_Yield, fill = Tomato_Type)) + 
+  geom_col(position = "dodge") + 
+  labs(y = "Average Yield")
+```
+
