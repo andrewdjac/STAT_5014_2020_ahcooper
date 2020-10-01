@@ -1,0 +1,218 @@
+---
+title: "HW3_ahcooper"
+author: "Andrew Cooper"
+date: "9/28/2020"
+output: pdf_document
+---
+
+```{r echo = F, message = F, warning = F}
+library(tidyverse)
+library(knitr)
+library(microbenchmark)
+```
+
+
+
+## Problem 3
+
+The guidelines for good programming style outlined in the style guides are designed to minize the ambiguity of R code and maintain a level of consistency in style. The R language can often be forgiving in what kinds of code it accepts as "errorless", which can allow users to code in ambiguous and "improper" ways. I think these style guides help enforce a stricter styler in function-creation and implementation that should make reviewing or revising code significantly easier.
+
+As for my programming practices, I plan to be more diligent in the style of variable naming, as I have been inconsistent with variable naming in the past.
+
+## Problem 5
+
+```{r}
+DataframeSummarize <- function(df){
+  # Takes in two-column dataframe as input, outputs vector of summary statistics
+  return(c(
+    sapply(df, mean),
+    sapply(df, sd),
+    cor(df[,1], df[,2]),
+    use.names = F
+  ))
+}
+```
+
+
+```{r}
+# Read in dataframe
+df <- readRDS("HW3_data.rds")
+```
+
+```{r}
+sum_table <- matrix(nrow = 13, ncol = 5)
+unique_obs <- sort(unique(df$Observer))
+
+# Iterate through each observer
+for(obs in unique_obs){
+  obs_df <- df[which(df$Observer == obs), -1]
+  sum_table[obs, ] <- DataframeSummarize(obs_df)
+}
+
+# Store summaries in data frame
+sum_table <- cbind(unique_obs, sum_table)
+sum_table <- as.data.frame(sum_table)
+```
+
+```{r}
+# Output table
+colnames(sum_table) <- c("Observer", "dev1_mean", "dev2_mean", "dev1_sd", "dev2_sd", "corr(dev1, dev2)")
+kable(sum_table)
+```
+
+
+```{r}
+# Side-by-side boxplots of dev1 and dev2
+df %>% 
+  mutate(Observer = factor(Observer)) %>% 
+  gather(dev, value, -Observer) %>% 
+  ggplot(aes(x = Observer, y = value, fill = dev)) + 
+  geom_boxplot()
+```
+
+
+```{r}
+# Side-by-side violin plots of dev1 and dev2
+df %>% 
+  mutate(Observer = factor(Observer)) %>% 
+  gather(dev, value, -Observer) %>% 
+  ggplot(aes(x = Observer, y = value, fill = dev)) + 
+  geom_violin()
+```
+
+
+The plots seem to hint at some significant differences in dev1 and dev2 among observers.
+
+
+```{r}
+# Scatterplots of  dev1 and dev2
+df %>% 
+  ggplot(aes(x = dev1, y = dev2)) + 
+  geom_point() + 
+  facet_wrap(Observer~.)
+```
+
+
+The scatterplots for each observer shows that for all of the observers there is a clear non-linear relationship between dev1 and dev2, where some even have the shape of drawings like a dinosaur or a star. This shows how basic visual data exploration like scatterplots can reveal key features about the data that summary statistics simply cannot. Had we not created these scatterplots we could have easily concluded linear relationships among the data that clearly do not exist.
+
+## Problem 6
+
+```{r}
+Riemman <- function(w){
+  # Computes a left-hand Riemann sum to estimate the integral of exp(-x^2/2) from 0 to 1, with rectangles of width w.
+  x <- seq(0, 1, w)
+  f <- function(x){exp(-x^2/2)}
+  return(sum(f(x)*w))
+}
+```
+
+
+```{r}
+true_val <- 0.855624
+tol <- 1e-6
+w <- 1
+diff <- 1
+# Divide width by 10 until Riemman sum error is below 1*10^-6
+while(diff > tol){
+  w <- w / 10
+  diff <- abs(Riemman(w) - true_val)
+}
+
+paste0("Width = ", w, ", Estimate = ", round(Riemman(w), 3), ", Error = ", round(diff, 9))
+```
+
+I found the width necessary to estimate the integral with an error less than 1*10^-6 by starting with a width of 1, then dividing that width by 10 until the error was small enough.
+
+
+## Problem 7
+
+```{r}
+Newton <- function(f, fp, x0, tol = 1e-6){
+  # Returns a root of the function f with derivative fp at starting point x0 under error tolerance tol
+  x <- x0
+  x_vals <- c(x)
+  f_vals <- c(f(x))
+  fp_vals <- c(fp(x))
+  diff <- abs(f(x))
+  diff_vals <- c(diff)
+  # Iterate until y-value at x is below tolerance
+  while(diff > tol){
+    x <- x - f(x)/fp(x)
+    diff <- abs(f(x))
+    diff_vals <- c(diff_vals, diff)
+    x_vals <- c(x_vals, x)
+    f_vals <- c(f_vals, f(x))
+    fp_vals <- c(fp_vals, fp(x))
+  }
+  return(list(
+    "root" = x,
+    "iterations" = diff_vals,
+    "x_vals"     = x_vals,
+    "f_vals"     = f_vals,
+    "fp_vals"    = fp_vals
+  ))
+}
+```
+
+
+```{r}
+f <- function(x){3^x - sin(x) + cos(5*x)}
+fp <- function(x){3^x*log(3) - cos(x) - 5*sin(5*x)}
+newton_results <- Newton(f, fp, 0)
+paste0("Root = ", newton_results$root, "; Number of Iterations = ", length(newton_results$iterations))
+```
+Our function found a root for the function at around x = -20.68215
+
+
+```{r}
+x <- seq(-25, 1, 0.01)
+plot(x, f(x), type = "l")
+lines(abline(a = 0, b = 0, col = "red"))
+x_vals <- newton_results$x_vals
+f_vals <- newton_results$f_vals
+fp_vals <- newton_results$fp_vals
+
+for(i in 1:length(x_vals)){
+  lines(abline(a = (f_vals[i] - fp_vals[i]*x_vals[i]), b = fp_vals[i]))
+}
+```
+
+
+## Problem 8
+
+
+```{r}
+X <- cbind(rep(1, 100), rep.int(1:10, time = 10))
+beta <- c(4, 5)
+y <- X %*% beta + rnorm(100)
+ybar <- mean(y)
+```
+
+
+```{r}
+SSE <- 0
+for(e in y){
+  SSE <- SSE + (e - ybar)^2
+}
+SSE
+
+microbenchmark({
+  SSE <- 0
+  for(e in y){
+    SSE <- SSE + (e - ybar)^2
+  }})
+```
+
+
+```{r}
+r <- y - ybar
+SSE <- SSE <- t(r) %*% r
+SSE
+microbenchmark({
+  r <- y - ybar
+  SSE <- SSE <- t(r) %*% r
+}) %>% print()
+```
+
+
+
