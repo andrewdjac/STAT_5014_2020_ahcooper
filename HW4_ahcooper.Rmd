@@ -1,0 +1,179 @@
+---
+title: "HW4_ahcooper"
+author: "Andrew Cooper"
+date: "10/11/2020"
+output: pdf_document
+---
+
+```{r warning = F, message = F}
+library(tidyverse)
+```
+
+
+# Problem 2
+
+```{r}
+grad_descent <- function(X, h, theta0, theta1, alpha = 1e-7, tol = 1e-9){
+  m <- nrow(X)
+  theta0_old <- theta0
+  theta1_old <- theta1
+  diff0 <- diff1 <- 1
+  num_iter <- 0
+  while(diff0 > tol && diff1 > tol && num_iter < 5e6){
+    h0 <- X %*% c(theta0_old, theta1_old)
+    theta0_new <- theta0_old - alpha*(1/m)*sum(h0 - h)
+    theta1_new <- theta1_old - alpha*(1/m)*sum((h0 - h)*X[, 2])
+    diff0 <- abs(theta0_new - theta0_old)
+    diff1 <- abs(theta1_new - theta1_old)
+    theta0_old <- theta0_new
+    theta1_old <- theta1_new
+    num_iter <- num_iter + 1
+  }
+  return(list(
+    "theta" = c(theta0_new, theta1_new),
+    "num_iter" = num_iter))
+  
+}
+```
+
+
+```{r}
+set.seed(1256)
+theta <- as.matrix(c(1, 2), nrow = 2)
+X <- cbind(1, rep(1:10, 10))
+h <- X %*% theta + rnorm(100, 0, 0.2)
+grad_descent(X, h, 1, 4)
+```
+
+
+# Problem 3
+
+## Part a
+
+```{r}
+n <- 10
+betas <- matrix(nrow = (n+1)^2, ncol = 2)
+num_iters <- rep(0, (n+1)^2)
+starting_vals <- seq(1 - n, 1 + n)
+c <- 1
+for(i in 1:(n+1)){
+  for(j in 1:(n+1)){
+    est <- grad_descent(X, h, starting_vals[i], starting_vals[j])
+    betas[c, ] <- est$theta
+    num_iters[c] <- est$num_iter
+    c <- c + 1
+  }
+}
+```
+
+
+## Part b
+
+## Part c
+
+
+# Problem 4
+
+
+# Problem 5
+
+
+```{r}
+set.seed(12456)
+
+G <- matrix(sample(c(0, 0.5, 1), size = 16000, replace = T), ncol = 10)
+R <- cor(G)
+Ca <- kronecker(R, diag(1600))
+id <- sample(1:16000, size = 932, replace = F)
+q <- sample(c(0, 0.5, 1), size = 15068, replace = T)
+A <- Ca[id, -id]
+B <- Ca[-id, -id]
+p <- runif(932, 0, 1)
+r <- runif(15068, 0, 1)
+C <- NULL
+```
+
+
+## Part a
+
+## Part b
+
+## Part c
+
+
+# Problem 3 (2)
+
+## Part a
+
+```{r}
+success_rate <- function(v, s){
+  return(length(which(v == s)) / length(v))
+}
+```
+
+
+## Part b
+
+```{r}
+set.seed(12345)
+P4b_data <- matrix(rbinom(10, 1, prob = (31:40)/100), nrow = 10, ncol = 10, byrow = F)
+```
+
+
+## Part c
+
+```{r}
+apply(P4b_data, 2, function(x){success_rate(x, 1)})
+```
+
+## Part d
+
+```{r}
+calc_prob <- function(p){
+  return(rbinom(10, 1, p))
+}
+```
+
+
+```{r}
+P4b_data <- sapply((31:40)/100, calc_prob)
+```
+
+
+```{r}
+apply(P4b_data, 2, function(x){success_rate(x, 1)})
+```
+
+# Problem 4 (2)
+
+```{r}
+df <- readRDS("HW3_data.rds")
+```
+
+```{r}
+df <- df %>% 
+  rename(x = dev1,
+         y = dev2)
+```
+
+
+```{r}
+create_scatter <- function(df, title, label){
+  df %>% 
+    plot(main = title, xlab = label[1], ylab = label[2])
+}
+```
+
+
+```{r}
+create_scatter(df[c(2,3)], "dev2 vs. dev1", c("dev1", "dev2"))
+```
+
+
+```{r}
+par(mfrow = c(4, 3))
+df %>% 
+  group_by(Observer) %>% 
+  create_scatter()
+```
+
