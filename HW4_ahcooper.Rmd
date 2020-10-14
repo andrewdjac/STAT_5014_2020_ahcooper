@@ -7,6 +7,7 @@ output: pdf_document
 
 ```{r warning = F, message = F}
 library(tidyverse)
+library(knitr)
 ```
 
 
@@ -171,9 +172,87 @@ create_scatter(df[c(2,3)], "dev2 vs. dev1", c("dev1", "dev2"))
 
 
 ```{r}
-par(mfrow = c(4, 3))
-df %>% 
-  group_by(Observer) %>% 
-  create_scatter()
+sapply(seq(1, 12, 1), function(x){
+  df_filtered <- df %>% filter(Observer == x)
+  create_scatter(df_filtered[c(2, 3)], "dev2 vs. dev1", c("dev1", "dev2"))
+})
 ```
+
+
+# Problem 5 (2)
+
+## Part a
+
+```{r}
+library(downloader)
+download("http://www.farinspace.com/wp-content/uploads/us_cities_and_states.zip",dest="us_cities_states.zip")
+unzip("us_cities_states.zip", exdir="./")
+
+#read in data, looks like sql dump, blah
+library(data.table)
+states <- fread(input = "./us_cities_and_states/states.sql",skip = 23,sep = "'", sep2 = ",", header = F, select = c(2,4))
+### YOU do the CITIES
+### I suggest the cities_extended.sql may have everything you need
+### can you figure out how to limit this to the 50?
+cities <- fread(input = "./us_cities_and_states/cities_extended.sql", sep = "'", sep2 = ",", header = F, select = c(2, 4))
+```
+
+## Part b
+
+```{r}
+cities %>% 
+  rename(State = V4) %>% 
+  unique() %>%
+  group_by(State) %>% 
+  summarise("Number of Cities" = n()) %>% 
+  kable()
+```
+
+
+## Part c
+
+
+```{r}
+count_frequency <- function(letter, state_name){
+  v <- strsplit(state_name, "") %>% unlist()
+  return(sum(tolower(v) == tolower(letter)))
+}
+```
+
+
+```{r}
+letter_count <- data.frame(matrix(NA, nrow = 50, ncol = 26))
+getCount <- function(state){
+  return(sapply(letters, function(x){count_frequency(x, state)}))
+}
+```
+
+
+```{r}
+letter_count <- sapply(states$V2, function(x){getCount(x)}) %>% t()
+```
+
+
+```{r}
+library(fiftystater)
+
+data("fifty_states") # this line is optional due to lazy data loading
+crimes <- data.frame(state = tolower(rownames(USArrests)), USArrests)
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(crimes, aes(map_id = state)) + 
+  # map points to the fifty_states shape data
+  geom_map(aes(fill = Assault), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank())
+
+p
+#ggsave(plot = p, file = "HW6_Problem6_Plot_Settlage.pdf")
+```
+
+
 
