@@ -33,9 +33,9 @@ grad_descent <- function(X, h, theta0, theta1, alpha = 1e-7, tol = 1e-9){
   return(list(
     "theta" = c(theta0_new, theta1_new),
     "num_iter" = num_iter))
-  
 }
 ```
+
 
 
 ```{r}
@@ -43,8 +43,13 @@ set.seed(1256)
 theta <- as.matrix(c(1, 2), nrow = 2)
 X <- cbind(1, rep(1:10, 10))
 h <- X %*% theta + rnorm(100, 0, 0.2)
-grad_descent(X, h, 1, 4)
+grad_descent(X, h, 1, 4, 0.01)
 ```
+
+```{r}
+lm(h ~ 0 + X)
+```
+
 
 
 # Problem 3
@@ -52,29 +57,50 @@ grad_descent(X, h, 1, 4)
 ## Part a
 
 ```{r}
-n <- 10
-betas <- matrix(nrow = (n+1)^2, ncol = 2)
-num_iters <- rep(0, (n+1)^2)
+n <- 2
+betas <- array(dim = c(n, n, 2))
+num_iters <- matrix(nrow = n, ncol = n)
 starting_vals <- seq(1 - n, 1 + n)
-c <- 1
-for(i in 1:(n+1)){
-  for(j in 1:(n+1)){
+max_iters <- 0
+max_starting_vals <- c(0, 0)
+min_iters <- 5e7
+min_starting_vals <- c(0, 0)
+for(i in 1:n){
+  for(j in 1:n){
     est <- grad_descent(X, h, starting_vals[i], starting_vals[j])
-    betas[c, ] <- est$theta
-    num_iters[c] <- est$num_iter
-    c <- c + 1
+    betas[i, j, ] <- est$theta
+    num_iters[i, j] <- est$num_iter
+    if(est$num_iter > max_iters){
+      max_iters <- est$num_iter
+      max_starting_vals <- c(starting_vals[i], starting_vals[j])
+    }
+    if(est$num_iter < min_iters){
+      min_iters <- est$num_iter
+      min_starting_vals <- c(starting_vals[i], starting_vals[j])
+    }
   }
 }
 ```
 
 
+The minimum number of iterations was `r min_iters` when our starting value for $\theta_0$ was `r min_starting_vals[1]` and our starting values for $\theta_1$ was `r min_starting_vals[2]`.
+
+The maximum number of iterations was `r max_iters` when our starting value for $\theta_0$ was `r max_starting_vals[1]` and our starting values for $\theta_1$ was `r max_starting_vals[2]`.
+
+
 ## Part b
+
+No this would not be a good idea. The purpose of these algorithms is to search for and approximate unknown values. In this case we can actually calculate the exact solution, but in most others cases where the function is not convex we can't find an exact formula for the solution and need to use an algorithm like this to find it.
 
 ## Part c
 
+It is nice that it is such a simple approach, however this can be really slow and take too many iterations, especially toward the end. A more advanced/complex algorithm would likely find approximations to the minimum of the objective function with fewer iterations.
 
 # Problem 4
 
+This is the exact solution for the values of $[\theta_0, \theta_2]$ that minimize the sum of squared-errors, $(Y - X\hat{\beta})^T(Y - X\hat{\beta})$. We can derive an equation for the minimum of this objective function since it is quadratic and therefore convex. We derive this solution by taking the derivative of the objective function with respect to $\hat{\beta}$, then equating it to $0$ and solving.
+
+To calculate this matrix we need to invert the square of the data matrix $X$, which we know is invertible due to its symmetry. We can compute the exact inverse using a program like R, although it is an $O(n^3)$ operation which is relatively slow. We could instead calculate a pseudo-inverse, which adds some error to the calculation but is usually significantly quicker.
 
 # Problem 5
 
@@ -97,7 +123,11 @@ C <- NULL
 
 ## Part a
 
+
+
 ## Part b
+
+
 
 ## Part c
 
@@ -127,6 +157,8 @@ P4b_data <- matrix(rbinom(10, 1, prob = (31:40)/100), nrow = 10, ncol = 10, byro
 apply(P4b_data, 2, function(x){success_rate(x, 1)})
 ```
 
+The issue with this is the creation of the matrix "P4b_data". Instead of simulating the results of ten tosses for each of the different probabilities, we only simulated one series of 10 flips and made each column that same series.
+
 ## Part d
 
 ```{r}
@@ -144,6 +176,10 @@ P4b_data <- sapply((31:40)/100, calc_prob)
 ```{r}
 apply(P4b_data, 2, function(x){success_rate(x, 1)})
 ```
+
+
+These are the correct estimates of the marginal success rates.
+
 
 # Problem 4 (2)
 
@@ -233,6 +269,9 @@ letter_count <- sapply(states$V2, function(x){getCount(x)}) %>% t()
 ```
 
 
+## Part d
+
+
 ```{r}
 library(fiftystater)
 
@@ -255,4 +294,25 @@ p
 ```
 
 
+
+# Problem 2 (3)
+
+
+## Part a
+
+
+
+## Part b
+
+## Part c
+
+
+
+# Problem 3 (3)
+
+
+## Part a
+
+
+## Part b
 
