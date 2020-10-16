@@ -8,6 +8,8 @@ output: pdf_document
 ```{r warning = F, message = F}
 library(tidyverse)
 library(knitr)
+library(microbenchmark)
+library(parallel)
 ```
 
 
@@ -300,19 +302,174 @@ p
 
 ## Part a
 
+```{r}
+library(quantreg)
+library(quantmod)
+#1)fetch data from Yahoo
+#AAPL prices
+apple08 <- getSymbols('AAPL', auto.assign = FALSE, from = '2008-1-1', to = 
+"2008-12-31")[,6]
+#market proxy
+rm08<-getSymbols('^ixic', auto.assign = FALSE, from = '2008-1-1', to = 
+"2008-12-31")[,6]
 
+#log returns of AAPL and market
+logapple08<- na.omit(ROC(apple08)*100)
+logrm08<-na.omit(ROC(rm08)*100)
+
+#OLS for beta estimation
+beta_AAPL_08<-summary(lm(logapple08~logrm08))$coefficients[2,1]
+```
+
+
+```{r}
+#create df from AAPL returns and market returns
+df08<-cbind(logapple08,logrm08)
+set.seed(666)
+Boot_times=1000
+Boot <- 5
+sd.boot=rep(0,Boot)
+for(i in 1:Boot){
+# nonparametric bootstrap
+inds <- sample(nrow(df08), size = 251, replace = TRUE)
+print(sort(unique(inds)))
+bootdata=df08[inds,]
+sd.boot[i]= coef(summary(lm(logapple08~logrm08, data = bootdata)))[2,2]
+}
+```
+
+
+The issue with the code is in the "lm" statement in the for-loop. The formula uses existing data frames, not the names of variables in df08. The lm function just ignores the data argument in this case, which is why the result is just the same as the original regression. To fix this you need to change the variable names to those in df08.
 
 ## Part b
 
+```{r warning = F, message = F}
+Sensory_raw <- read_table2("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat", 
+     col_types = cols(Item = col_character()), col_names = F, skip = 2)
+```
+
+
+```{r warning = F, message = F}
+# Remove NA's, align columns
+Sensory_values <- apply(Sensory_raw, 1, function(x){
+  if(any(is.na(x))){
+    return(x[!is.na(x)])
+  }else{
+    return(x[-1])
+  }
+})
+# Add column for item
+Sensory <- data.frame(cbind(rep(seq(1, 10, 1), each = 3), t(Sensory_values)))
+colnames(Sensory) <- c("Item", seq(1, 5, 1))
+Sensory <- as_data_frame(Sensory)
+```
+
+
+```{r}
+Sensory <- Sensory %>% 
+  gather("Operator", "Y", -Item)
+```
+
+
+```{r}
+bootstrap_size <- 30
+bootstrap_sd <- matrix(nrow = 100, ncol = 5)
+for(i in 1:100){
+  bootstrap_sample <- purrr::map(1:5, function(x){
+    df_filtered <- Sensory[which(Sensory$Operator == x), ]
+    bootstrap_inds <- sample(1:nrow(df_filtered), bootstrap_size, replace = T)
+    return(df_filtered[bootstrap_inds, ])
+  }) %>% combine()
+  bootstrap_sd[i, ] <- lm(Y ~ Operator, bootstrap_sample) %>% coef()
+}
+```
+
+
+```{r}
+apply(bootstrap_sd, 2, sd)
+```
+
+```{r}
+bootstrap_nonparallel_results <- microbenchmark({
+  bootstrap_size <- 30
+  bootstrap_sd <- matrix(nrow = 100, ncol = 5)
+  for(i in 1:100){
+    bootstrap_sample <- purrr::map(1:5, function(x){
+      df_filtered <- Sensory[which(Sensory$Operator == x), ]
+      bootstrap_inds <- sample(1:nrow(df_filtered), bootstrap_size, replace = T)
+      return(df_filtered[bootstrap_inds, ])
+    }) %>% combine()
+    bootstrap_sd[i, ] <- lm(Y ~ Operator, bootstrap_sample) %>% coef()
+  }
+})
+```
+
+
+
+
 ## Part c
 
+We can run the bootstraps in parallel since the bootstraps don't depend on one another, i.e. the results of one bootstrap don't affect the results of another.
+
+```{r}
+kable(bootstrap_nonparallel_results)
+```
 
 
 # Problem 3 (3)
 
+```{r}
+Newton <- function(f, fp, x0, tol = 1e-6){
+  # Returns a root of the function f with derivative fp at starting point x0 under error tolerance tol
+  x <- x0
+  x_vals <- c(x)
+  f_vals <- c(f(x))
+  fp_vals <- c(fp(x))
+  diff <- abs(f(x))
+  diff_vals <- c(diff)
+  # Iterate until y-value at x is below tolerance
+  while(diff > tol){
+    x <- x - f(x)/fp(x)
+    diff <- abs(f(x))
+    diff_vals <- c(diff_vals, diff)
+    x_vals <- c(x_vals, x)
+    f_vals <- c(f_vals, f(x))
+    fp_vals <- c(fp_vals, fp(x))
+  }
+  return(list(
+    "root" = x,
+    "iterations" = diff_vals,
+    "x_vals"     = x_vals,
+    "f_vals"     = f_vals,
+    "fp_vals"    = fp_vals
+  ))
+}
+```
+
 
 ## Part a
 
+```{r}
+f <- function(x){3^x - sin(x) + cos(5*x)}
+fp <- function(x){3^x*log(3) - cos(x) - 5*sin(5*x)}
+```
+
+
+```{r}
+x_grid <- seq(-50, 50, 1)
+```
+
+
+```{r}
+sapply(x_grid, function(x){Newton(f, fp, x)})
+```
+
 
 ## Part b
+
+```{r}
+cl <- makeCluster(8)
+parSapply(cl, x_grid, function(x){Newton(f, fp, x)})
+```
+
 

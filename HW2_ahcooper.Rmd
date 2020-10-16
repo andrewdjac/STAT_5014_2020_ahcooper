@@ -46,6 +46,7 @@ colnames(Sensory) <- c("Item", seq(1, 5, 1))
 Sensory <- as_data_frame(Sensory)
 ```
 
+
 ### tidyverse data-munging
 
 The measurements for each operator are currently spread out over multiple columns. A cleaner version would have these measurements collected into a single column, which I do using the "gather" function from tidyverse.
