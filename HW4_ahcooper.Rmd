@@ -51,6 +51,7 @@ grad_descent(X, h, 1, 4, 0.01)
 ```{r}
 lm(h ~ 0 + X)
 ```
+The results are about the same.
 
 
 
@@ -59,36 +60,41 @@ lm(h ~ 0 + X)
 ## Part a
 
 ```{r}
-n <- 2
-betas <- array(dim = c(n, n, 2))
-num_iters <- matrix(nrow = n, ncol = n)
+n <- 15
 starting_vals <- seq(1 - n, 1 + n)
-max_iters <- 0
-max_starting_vals <- c(0, 0)
-min_iters <- 5e7
-min_starting_vals <- c(0, 0)
-for(i in 1:n){
-  for(j in 1:n){
-    est <- grad_descent(X, h, starting_vals[i], starting_vals[j])
-    betas[i, j, ] <- est$theta
-    num_iters[i, j] <- est$num_iter
-    if(est$num_iter > max_iters){
-      max_iters <- est$num_iter
-      max_starting_vals <- c(starting_vals[i], starting_vals[j])
-    }
-    if(est$num_iter < min_iters){
-      min_iters <- est$num_iter
-      min_starting_vals <- c(starting_vals[i], starting_vals[j])
-    }
-  }
-}
+grid_inds <- expand.grid(seq(1, n, 1), seq(1, n, 1))
 ```
 
 
-The minimum number of iterations was `r min_iters` when our starting value for $\theta_0$ was `r min_starting_vals[1]` and our starting values for $\theta_1$ was `r min_starting_vals[2]`.
+```{r}
+cl <- makeCluster(10)
+clusterExport(cl, "grad_descent")
+clusterExport(cl, "X")
+clusterExport(cl, "h")
+clusterExport(cl, "starting_vals")
+```
 
-The maximum number of iterations was `r max_iters` when our starting value for $\theta_0$ was `r max_starting_vals[1]` and our starting values for $\theta_1$ was `r max_starting_vals[2]`.
 
+```{r}
+starting_value_analysis <- parApply(cl, grid_inds, 1, function(row){
+  i <- row[1]
+  j <- row[2]
+  return(est <- grad_descent(X, h, starting_vals[i], starting_vals[j], 0.01))
+})
+```
+
+
+```{r}
+beta_estimates <- sapply(1:length(starting_value_analysis), function(i){starting_value_analysis[[i]][[1]]})
+iterations <-  sapply(1:length(starting_value_analysis), function(i){starting_value_analysis[[i]][[2]]})
+```
+
+
+The minimum number of iterations was `r min_iters` when our starting value for $\theta_0$ was `r grid_inds[which.min(iterations),][1]` and our starting values for $\theta_1$ was `r grid_inds[which.min(iterations),][2]`.
+
+The maximum number of iterations was `r max_iters` when our starting value for $\theta_0$ was `r grid_inds[which.max(iterations),][1]` and our starting values for $\theta_1$ was `r grid_inds[which.max(iterations),][2]`.
+
+The mean beta estimate was `r apply(beta_estimates, 1, mean)`. The standard deviation was `r apply(beta_estimates, 1, sd)`.
 
 ## Part b
 
@@ -104,6 +110,7 @@ This is the exact solution for the values of $[\theta_0, \theta_2]$ that minimiz
 
 To calculate this matrix we need to invert the square of the data matrix $X$, which we know is invertible due to its symmetry. We can compute the exact inverse using a program like R, although it is an $O(n^3)$ operation which is relatively slow. We could instead calculate a pseudo-inverse, which adds some error to the calculation but is usually significantly quicker.
 
+
 # Problem 5
 
 
@@ -112,26 +119,37 @@ set.seed(12456)
 
 G <- matrix(sample(c(0, 0.5, 1), size = 16000, replace = T), ncol = 10)
 R <- cor(G)
-Ca <- kronecker(R, diag(1600))
-id <- sample(1:16000, size = 932, replace = F)
-q <- sample(c(0, 0.5, 1), size = 15068, replace = T)
-A <- Ca[id, -id]
-B <- Ca[-id, -id]
+C <- kronecker(R, diag(160))
+id <- sample(1:1600, size = 932, replace = F)
+q <- sample(c(0, 0.5, 1), size = 668, replace = T)
+A <- C[id, -id]
+B <- C[-id, -id]
 p <- runif(932, 0, 1)
-r <- runif(15068, 0, 1)
+r <- runif(668, 0, 1)
 C <- NULL
 ```
 
 
 ## Part a
 
+A is `r object.size(A)`. B is `r object.size(B)`.
+
+```{r}
+microbenchmark({
+  p + A %*% solve(B) %*% t(t(q - r))
+})
+```
 
 
 ## Part b
 
-
+We would likely want to break apart the inverse operation from the rest of the 
 
 ## Part c
+
+```{r}
+
+```
 
 
 # Problem 3 (2)
@@ -302,43 +320,6 @@ p
 
 ## Part a
 
-```{r}
-library(quantreg)
-library(quantmod)
-#1)fetch data from Yahoo
-#AAPL prices
-apple08 <- getSymbols('AAPL', auto.assign = FALSE, from = '2008-1-1', to = 
-"2008-12-31")[,6]
-#market proxy
-rm08<-getSymbols('^ixic', auto.assign = FALSE, from = '2008-1-1', to = 
-"2008-12-31")[,6]
-
-#log returns of AAPL and market
-logapple08<- na.omit(ROC(apple08)*100)
-logrm08<-na.omit(ROC(rm08)*100)
-
-#OLS for beta estimation
-beta_AAPL_08<-summary(lm(logapple08~logrm08))$coefficients[2,1]
-```
-
-
-```{r}
-#create df from AAPL returns and market returns
-df08<-cbind(logapple08,logrm08)
-set.seed(666)
-Boot_times=1000
-Boot <- 5
-sd.boot=rep(0,Boot)
-for(i in 1:Boot){
-# nonparametric bootstrap
-inds <- sample(nrow(df08), size = 251, replace = TRUE)
-print(sort(unique(inds)))
-bootdata=df08[inds,]
-sd.boot[i]= coef(summary(lm(logapple08~logrm08, data = bootdata)))[2,2]
-}
-```
-
-
 The issue with the code is in the "lm" statement in the for-loop. The formula uses existing data frames, not the names of variables in df08. The lm function just ignores the data argument in this case, which is why the result is just the same as the original regression. To fix this you need to change the variable names to those in df08.
 
 ## Part b
@@ -456,12 +437,12 @@ fp <- function(x){3^x*log(3) - cos(x) - 5*sin(5*x)}
 
 
 ```{r}
-x_grid <- seq(-50, 50, 1)
+x_grid <- seq(-10, 10, 1)
 ```
 
 
 ```{r}
-sapply(x_grid, function(x){Newton(f, fp, x)})
+sapply(x_grid, function(x){Newton(f, fp, x)$root})
 ```
 
 
@@ -469,7 +450,10 @@ sapply(x_grid, function(x){Newton(f, fp, x)})
 
 ```{r}
 cl <- makeCluster(8)
-parSapply(cl, x_grid, function(x){Newton(f, fp, x)})
+clusterExport(cl, "Newton")
+clusterExport(cl, "f")
+clusterExport(cl, "fp")
+parSapply(cl, x_grid, function(x){Newton(f, fp, x)$root})
 ```
 
 
