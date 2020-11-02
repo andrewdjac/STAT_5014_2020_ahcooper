@@ -1,0 +1,55 @@
+---
+title: "HW5_ahcooper"
+author: "Andrew Cooper"
+date: "11/2/2020"
+output: pdf_document
+---
+
+```{r warning = F, message = F}
+library(tidyverse)
+library(readr)
+```
+
+
+
+```{r}
+EdStatsCountry <- read.csv("/cloud/project/EdStatsCountry.csv")
+EdStatsCountry_Series <- read.csv("/cloud/project/EdStatsCountry-Series.csv")
+EdStatsData <- read.csv("/cloud/project/EdStatsData.csv", nrows = 1000)
+EdStatsFootNote <- read.csv("/cloud/project/EdStatsFootNote.csv")
+EdStatsSeries <- read.csv("/cloud/project/EdStatsSeries.csv")
+```
+
+
+```{r}
+EdStatsCountry %>% colnames()
+```
+
+```{r}
+EdStatsCountry_Series %>% head()
+```
+
+
+```{r}
+EdStatsData %>% head()
+```
+
+
+```{r}
+EdStatsFootNote %>% head()
+```
+
+```{r}
+EdStatsSeries %>% head()
+```
+
+
+```{r}
+df1 <- left_join(EdStatsCountry, EdStatsCountry_Series, by = c("Country.Code" = "CountryCode")) %>% 
+  left_join(EdStatsData, by = "Country.Code") %>% 
+  left_join(EdStatsFootNote, by = c("Country.Code" = "CountryCode")) %>% 
+  left_join(EdStatsSeries, by = c("SeriesCode" = "Series.Code"))
+```
+
+
+
