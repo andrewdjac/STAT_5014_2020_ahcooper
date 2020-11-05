@@ -8,48 +8,60 @@ output: pdf_document
 ```{r warning = F, message = F}
 library(tidyverse)
 library(readr)
+library(janitor)
+library(MASS)
 ```
 
+# Problem 3
 
+My r-session crashed everytime I attempted to load the file "EdStatsData.csv" in its entirety. TO avoid this issue I only read in the first 1000 rows, which makes my compuations of the number of rows in the data before and after munging it innacurate.
 
-```{r}
-EdStatsCountry <- read.csv("/cloud/project/EdStatsCountry.csv")
-EdStatsCountry_Series <- read.csv("/cloud/project/EdStatsCountry-Series.csv")
-EdStatsData <- read.csv("/cloud/project/EdStatsData.csv", nrows = 1000)
-EdStatsFootNote <- read.csv("/cloud/project/EdStatsFootNote.csv")
-EdStatsSeries <- read.csv("/cloud/project/EdStatsSeries.csv")
-```
-
-
-```{r}
-EdStatsCountry %>% colnames()
-```
-
-```{r}
-EdStatsCountry_Series %>% head()
+```{r warning = F, message = F}
+EdStatsCountry <- read_csv("~/STAT5014/EdStatsCountry.csv")
+EdStatsCountry_Series <- read.csv("~/STAT5014/EdStatsCountry-Series.csv", col.names = c("Country Code", "Series Code", "Description", "X"))
+EdStatsData <- read_csv("~/STAT5014/EdStatsData.csv", n_max = 1000)
+EdStatsFootNote <- read_csv("~/STAT5014/EdStatsFootNote.csv")
+EdStatsSeries <- read_csv("~/STAT5014/EdStatsSeries.csv")
 ```
 
 
 ```{r}
-EdStatsData %>% head()
+df1 <- left_join(EdStatsCountry, EdStatsCountry_Series, by = c("Country Code" = "Country.Code")) %>% 
+  left_join(EdStatsData, by = "Country Code") %>% 
+  left_join(EdStatsFootNote, by = c("Country Code" = "CountryCode")) %>% 
+  left_join(EdStatsSeries, by = c("SeriesCode" = "Series Code"))
 ```
 
 
 ```{r}
-EdStatsFootNote %>% head()
+df1_clean <- df1 %>% 
+  janitor::clean_names()
 ```
+
+
+There were `r 241+613+1000+643638+3665` rows in the original data. There are now `r 7317784` rows in the cleaned data.
+
+
+
+# Problem 4
 
 ```{r}
-EdStatsSeries %>% head()
+lm1 <- lm(x1971 ~ x1970, df1_clean)
 ```
 
 
 ```{r}
-df1 <- left_join(EdStatsCountry, EdStatsCountry_Series, by = c("Country.Code" = "CountryCode")) %>% 
-  left_join(EdStatsData, by = "Country.Code") %>% 
-  left_join(EdStatsFootNote, by = c("Country.Code" = "CountryCode")) %>% 
-  left_join(EdStatsSeries, by = c("SeriesCode" = "Series.Code"))
+par(mfrow = c(2, 3))
+plot(lm1, which = 1)
+plot(fitted(lm1), studres(lm1))
+plot(lm1, which = 3)
+plot(lm1, which = 2)
+plot(lm1, which = 4)
 ```
 
 
+# Problem 5
+
+```{r}
+```
 
