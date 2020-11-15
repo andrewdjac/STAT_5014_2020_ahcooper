@@ -10,6 +10,7 @@ library(tidyverse)
 library(readr)
 library(janitor)
 library(MASS)
+library(ggfortify)
 ```
 
 # Problem 3
@@ -50,7 +51,7 @@ lm1 <- lm(x1971 ~ x1970, df1_clean)
 ```
 
 
-```{r}
+```{r warning = F, message = F}
 par(mfrow = c(2, 3))
 plot(lm1, which = 1)
 plot(fitted(lm1), studres(lm1))
@@ -62,6 +63,20 @@ plot(lm1, which = 4)
 
 # Problem 5
 
-```{r}
+```{r warning = F, message = F}
+lm_df <- data_frame("fitted" = fitted(lm1), "residuals" = residuals(lm1), "rstudent" = studres(lm1))
+```
+
+
+```{r warning = F, message = F}
+par(mfrow = c(2, 3))
+lm_df %>% ggplot(aes(x = fitted, y = residuals)) + 
+  geom_point() + 
+  geom_abline(slope = 0, intercept = 0, col = "red")
+lm_df %>% ggplot(aes(x = fitted, y = rstudent)) + 
+  geom_point()
+autoplot(lm1, which = 5)
+autoplot(lm1, which = 2)
+autoplot(lm1, which = 4)
 ```
 
